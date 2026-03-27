@@ -1,6 +1,7 @@
 #include <GLFW/glfw3.h>
 #include <Engine.h>
 
+
 int main() {
 	Engine engineToy;
 
@@ -10,3 +11,4 @@ int main() {
 
 	engineToy.cleanup();
 }
+
