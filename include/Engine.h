@@ -7,6 +7,15 @@
 #include <functional>
 #include <vk_mem_alloc.h>
 
+constexpr unsigned int FRAME_OVERLAP = 2;
+
+struct FrameData {
+	VkCommandPool commandPool;
+	VkCommandBuffer mainCommandBuffer;
+	VkSemaphore swapchainSemaphore;
+	VkFence renderFence;
+};
+
 struct deletionQueue
 {
 	std::deque<std::function<void()>> deletors;
@@ -41,6 +50,7 @@ private:
 	int screenHeight = 600;
 	GLFWwindow* _window;
 
+	//init vulkan
 	VkInstance _instance;
 	VkDebugUtilsMessengerEXT _debug_messenger;
 	VkPhysicalDevice _chosenGPU;
@@ -54,6 +64,7 @@ private:
 
 	VmaAllocator _allocator;
 
+	//swapchain 
 	VkSwapchainKHR _swapchain;
 	VkFormat _swapchainImageFormat;
 	VkExtent2D _swapchainExtent;
@@ -61,9 +72,21 @@ private:
 	std::vector<VkImage> _swapchainImages;
 	std::vector<VkImageView> _swapchainImageViews;
 
+	FrameData _frames[FRAME_OVERLAP];
+	uint32_t _frameNumber{ 0 };
+
+	std::vector<VkSemaphore> _renderSemaphores;
+
 	void init_vulkan();
 
 	void init_swapchain();
 
+	void init_commands();
+
+	void init_sync_structures();
+
+	void draw();
+
+	FrameData& get_current_frame() { return _frames[_frameNumber % FRAME_OVERLAP]; }
 };
 
