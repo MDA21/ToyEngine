@@ -39,6 +39,7 @@ void Engine::run() {
 }
 
 void Engine::cleanup() {
+	vkDeviceWaitIdle(_device);
 	_mainDeletionQueue.flush();
 	glfwDestroyWindow(_window);
 	glfwTerminate();
@@ -65,6 +66,35 @@ void Engine::draw() {
 	vkBeginCommandBuffer(currentFrame.mainCommandBuffer, &cmdBeginInfo);
 
 	//......
+	VkImage swapchainImage = _swapchainImages[swapchainImageIndex];
+	VkImageView swapchainImageView = _swapchainImageViews[swapchainImageIndex];
+	transition_image(currentFrame.mainCommandBuffer, swapchainImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+	VkClearValue clearValue{};
+	float flash = std::abs(std::sin(_frameNumber / 120.0f));
+	clearValue.color = { {0.0f,0.0f,flash,1.0f} };
+
+	VkRenderingAttachmentInfo colorAttachment{};
+	colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+	colorAttachment.imageView = swapchainImageView;
+	colorAttachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	colorAttachment.clearValue = clearValue;
+
+	VkRenderingInfo renderInfo{};
+	renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;	
+	renderInfo.renderArea = VkRect2D{ {0,0},_swapchainExtent };
+	renderInfo.layerCount = 1;
+	renderInfo.colorAttachmentCount = 1;
+	renderInfo.pColorAttachments = &colorAttachment;
+
+	vkCmdBeginRendering(currentFrame.mainCommandBuffer, &renderInfo);
+
+	vkCmdEndRendering(currentFrame.mainCommandBuffer);
+
+	transition_image(currentFrame.mainCommandBuffer, swapchainImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
 
 	vkEndCommandBuffer(currentFrame.mainCommandBuffer);
 
@@ -240,13 +270,19 @@ void Engine::init_commands() {
 		vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_frames[i].mainCommandBuffer);
 	}
 
-
-	
-
 	_mainDeletionQueue.push_function([this]() {
 		for (int i = 0; i < FRAME_OVERLAP; ++i)
 		vkDestroyCommandPool(_device, _frames[i].commandPool, nullptr);
 		});
+
+	VkShaderModule vertShader;
+	if (load_shader_module("src/shaders/triangle.vert.spv", &vertShader)) {
+		std::cout << "[SYSTEM] 顶点着色器加载成功！\n";
+		vkDestroyShaderModule(_device, vertShader, nullptr);
+	}
+	else {
+		std::cout << "[SYSTEM] 顶点着色器加载失败！请检查路径！\n";
+	}
 }
 
 void Engine::init_sync_structures() {
@@ -272,4 +308,24 @@ void Engine::init_sync_structures() {
 			vkDestroySemaphore(_device, _frames[i].swapchainSemaphore, nullptr);
 		}
 		});
+}
+
+bool Engine::load_shader_module(const std::string& filePath, VkShaderModule* outShaderModule) {
+	std::ifstream file(filePath, std::ios::ate|std::ios::binary);
+	if (!file.is_open()) {
+		return false;
+	}
+	size_t fileSize = (size_t)file.tellg();
+	std::vector<uint32_t> buffer(fileSize / sizeof(uint32_t));
+
+	file.seekg(0);
+
+	file.read(reinterpret_cast<char*>(buffer.data()), fileSize);
+
+	VkShaderModuleCreateInfo info{};
+	info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+	info.codeSize = fileSize;
+	info.pCode = buffer.data();
+	vkCreateShaderModule(_device, &info, nullptr, outShaderModule);
+	return true;
 }

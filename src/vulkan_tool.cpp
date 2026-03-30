@@ -5,6 +5,7 @@
 #include <queue>
 #include <functional>
 #include <vk_mem_alloc.h>
+#include <fstream>
 
 #include "vulkan_tool.h"
 
@@ -34,3 +35,4 @@ void transition_image(VkCommandBuffer cmd, VkImage image, VkImageLayout currentL
 
 	vkCmdPipelineBarrier2(cmd, &dependencyInfo);
 }
+

@@ -6,6 +6,7 @@
 #include <queue>
 #include <functional>
 #include <vk_mem_alloc.h>
+#include <fstream>
 
 constexpr unsigned int FRAME_OVERLAP = 2;
 
@@ -88,5 +89,7 @@ private:
 	void draw();
 
 	FrameData& get_current_frame() { return _frames[_frameNumber % FRAME_OVERLAP]; }
+
+	bool load_shader_module(const std::string& filePath, VkShaderModule* outShaderModule);
 };
 
